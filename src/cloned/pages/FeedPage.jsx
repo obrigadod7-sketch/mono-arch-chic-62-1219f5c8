@@ -76,6 +76,27 @@ const saveState = (id, data) => {
   try { localStorage.setItem(storageKey(id), JSON.stringify(data)); } catch {}
 };
 
+const getActivePublishUser = async (contextUser) => {
+  if (contextUser?.id) return contextUser;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) return session.user;
+
+  const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+  if (refreshedSession?.user) return refreshedSession.user;
+
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  return authUser || null;
+};
+
+const getPublishSessionUser = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) return session.user;
+
+  const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+  return refreshedSession?.user || null;
+};
+
 // Jataí-style PostCard rendering PertoDeMimServicos posts
 const PostCard = ({ post, onChat }) => {
   const initial = loadState(post.id);
