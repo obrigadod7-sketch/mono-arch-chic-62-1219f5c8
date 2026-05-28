@@ -451,7 +451,7 @@ export default function FeedPage() {
     toast.info('Faça login para publicar');
     setShowCreateModal(false);
     const nextPath = window.location.pathname || '/home';
-    navigate(`/auth?next=${encodeURIComponent(nextPath)}&action=publish&mode=${encodeURIComponent(mode)}`);
+    navigate(`/auth?next=${encodeURIComponent(`${nextPath}?action=publish&mode=${mode}`)}`);
   };
 
   const openModal = (mode) => {
