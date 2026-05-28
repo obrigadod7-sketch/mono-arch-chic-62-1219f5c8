@@ -23,18 +23,8 @@ export const DebugErrorThrower = () => {
     return () => window.removeEventListener("lovable-debug-error", handler as EventListener);
   }, []);
 
-  if (message?.startsWith("INSTRUÇÃO DE DESENVOLVIMENTO")) {
-    setMessage(null);
-    console.info("Instrução de desenvolvimento recebida sem derrubar a tela.");
-    return null;
-  }
-
   if (message) {
-    const toThrow = message;
-    // Limpa o state para que o erro só dispare uma vez por instrução
-    // e o app possa recuperar após reload sem re-throw infinito.
-    setMessage(null);
-    throw new Error(toThrow);
+    throw new Error(message);
   }
 
   return null;
