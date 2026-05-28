@@ -307,53 +307,77 @@ export const ErrorDebugPopup: React.FC = () => {
       setUploading(true);
       setUploadProgress("Preparando upload...");
       const uploadedUrls: { name: string; url: string; type: string }[] = [];
+      const skipped: { name: string; reason: string }[] = [];
+      let accessToken: string | null = null;
       try {
-        const accessToken = await resolveUploadAccessToken(token);
-        for (let i = 0; i < files.length; i++) {
-          const f = files[i];
-          const ext = sanitizePathSegment(f.name.split(".").pop() || "bin");
-          const baseName = sanitizePathSegment(f.name.replace(/\.[^/.]+$/, ""));
-          const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${baseName}.${ext}`;
-          setUploadProgress(`Enviando ${i + 1}/${files.length}: 0%`);
-          let uploadedToStorage = false;
-          if (accessToken) {
-            try {
-              await uploadLargeFile(f.file, path, accessToken, (percent) => {
-                setUploadProgress(`Enviando ${i + 1}/${files.length}: ${percent}%`);
-              });
-              const url = await createDebugFileUrl(path, accessToken);
-              uploadedUrls.push({ name: f.name, url, type: f.type });
-              uploadedToStorage = true;
-            } catch (uploadError) {
-              if (f.file.size > INLINE_FALLBACK_LIMIT) throw uploadError;
-            }
-          }
-
-          if (!uploadedToStorage && f.file.size <= INLINE_FALLBACK_LIMIT) {
-            setUploadProgress(`Anexando ${i + 1}/${files.length} sem sessão...`);
-            const url = await readFileAsDataUrl(f.file);
-            uploadedUrls.push({ name: f.name, url, type: f.type });
-          } else if (!uploadedToStorage) {
-            throw new Error("Sessão indisponível para arquivos grandes. Use um arquivo menor ou faça login novamente.");
-          }
-        }
-      } catch (e) {
-        setAttachError(`Erro inesperado no upload: ${(e as Error).message}`);
-        setUploadProgress(null);
-        setUploading(false);
-        return;
-      } finally {
-        setUploadProgress(null);
-        setUploading(false);
+        accessToken = await resolveUploadAccessToken(token);
+      } catch {
+        accessToken = null;
       }
 
-      message += `\n\n---\n${ATTACHMENT_INSTRUCTIONS}\n\nARQUIVOS ANEXADOS (${uploadedUrls.length}):\n`;
-      uploadedUrls.forEach((f, idx) => {
-        message += `\n[Arquivo ${idx + 1}: ${f.name} (${f.type})]\n${f.url}\n`;
-      });
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const ext = sanitizePathSegment(f.name.split(".").pop() || "bin");
+        const baseName = sanitizePathSegment(f.name.replace(/\.[^/.]+$/, ""));
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${baseName}.${ext}`;
+        setUploadProgress(`Enviando ${i + 1}/${files.length}: 0%`);
+        let uploadedToStorage = false;
+
+        if (accessToken) {
+          try {
+            await uploadLargeFile(f.file, path, accessToken, (percent) => {
+              setUploadProgress(`Enviando ${i + 1}/${files.length}: ${percent}%`);
+            });
+            const url = await createDebugFileUrl(path, accessToken);
+            uploadedUrls.push({ name: f.name, url, type: f.type });
+            uploadedToStorage = true;
+          } catch (uploadError) {
+            console.warn("[DebugTool] storage upload failed", uploadError);
+          }
+        }
+
+        if (!uploadedToStorage) {
+          if (f.file.size <= INLINE_FALLBACK_LIMIT) {
+            try {
+              setUploadProgress(`Anexando ${i + 1}/${files.length} inline...`);
+              const url = await readFileAsDataUrl(f.file);
+              uploadedUrls.push({ name: f.name, url, type: f.type });
+            } catch (readError) {
+              skipped.push({ name: f.name, reason: (readError as Error).message });
+            }
+          } else {
+            skipped.push({ name: f.name, reason: "arquivo muito grande sem sessão" });
+          }
+        }
+      }
+
+      setUploadProgress(null);
+      setUploading(false);
+
+      if (skipped.length > 0) {
+        setAttachError(
+          `Não foi possível anexar ${skipped.length} arquivo(s): ${skipped
+            .map((s) => `${s.name} (${s.reason})`)
+            .join(", ")}. Enviando o restante...`
+        );
+      }
+
+      if (uploadedUrls.length === 0 && !trimmed) {
+        return;
+      }
+
+      if (uploadedUrls.length > 0) {
+        message += `\n\n---\n${ATTACHMENT_INSTRUCTIONS}\n\nARQUIVOS ANEXADOS (${uploadedUrls.length}):\n`;
+        uploadedUrls.forEach((f, idx) => {
+          message += `\n[Arquivo ${idx + 1}: ${f.name} (${f.type})]\n${f.url}\n`;
+        });
+      }
     }
 
     window.dispatchEvent(new CustomEvent("lovable-debug-error", { detail: message }));
+    setText("");
+    files.forEach((f) => f.previewUrl && URL.revokeObjectURL(f.previewUrl));
+    setFiles([]);
   }, [text, files, token]);
 
   const onTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
