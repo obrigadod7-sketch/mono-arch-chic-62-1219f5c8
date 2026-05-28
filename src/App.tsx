@@ -20,7 +20,6 @@ import ServicosOfertantes from "./pages/servicos/Ofertantes";
 import ServicosAssinatura from "./pages/servicos/Assinatura";
 import ServicosPerfil from "./pages/servicos/Perfil";
 import ServicosAdmin from "./pages/servicos/Admin";
-import { ErrorDebugPopup } from "./components/ErrorDebugPopup";
 import { ClonedAuthProvider, clonedRoutes } from "./cloned/ClonedRoutes";
 import { AuthContext as ClonedAuthContext } from "./cloned/ClonedAuthContext";
 
@@ -54,7 +53,6 @@ const AppRoutes = () => {
 
 const App = () => (
   <TooltipProvider>
-    <ErrorDebugPopup />
     <ClonedAuthProvider>
       <Toaster />
       <Sonner />
