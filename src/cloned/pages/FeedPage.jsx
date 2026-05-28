@@ -476,18 +476,15 @@ export default function FeedPage() {
   };
 
   const openModal = async (mode) => {
-    if (user) {
-      resetCreateModal(mode);
-      return;
-    }
-    // Fallback: AuthContext may not be wired; verify session directly with Supabase.
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
+      const activeUser = await getActivePublishUser(user);
+      if (activeUser) {
         resetCreateModal(mode);
         return;
       }
-    } catch (_) {}
+    } catch (error) {
+      console.warn('publish auth check failed', error);
+    }
     requireLoginForPublish(mode);
   };
 
@@ -495,12 +492,11 @@ export default function FeedPage() {
     if (searchParams.get('action') !== 'publish') return;
     let cancelled = false;
     (async () => {
-      let isAuthed = Boolean(user);
-      if (!isAuthed) {
-        try {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          isAuthed = Boolean(authUser);
-        } catch (_) {}
+      let isAuthed = false;
+      try {
+        isAuthed = Boolean(await getActivePublishUser(user));
+      } catch (error) {
+        console.warn('publish auto-open auth check failed', error);
       }
       if (cancelled || !isAuthed) return;
       const mode = searchParams.get('mode') === 'offer' ? 'offer' : 'need';
