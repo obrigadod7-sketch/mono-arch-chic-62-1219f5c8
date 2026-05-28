@@ -630,9 +630,8 @@ export default function FeedPage() {
     }
     setLoadingPost(true);
     try {
-      // Require a validated auth user so post is visible to everyone
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !authUser) {
+      const authUser = await getPublishSessionUser();
+      if (!authUser) {
         requireLoginForPublish(modalMode);
         return;
       }
