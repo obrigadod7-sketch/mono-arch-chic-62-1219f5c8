@@ -595,15 +595,13 @@ export default function FeedPage() {
     }
     setLoadingPost(true);
     try {
-      // Require auth so post is visible to everyone
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session) {
-        toast.error('Faça login para publicar');
-        setLoadingPost(false);
-        navigate('/servicos/auth');
+      // Require a validated auth user so post is visible to everyone
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        requireLoginForPublish(modalMode);
         return;
       }
-      const uid = session.session.user.id;
+      const uid = authUser.id;
 
       // Upload photos and videos to public storage so other users can see them
       const uploadedUrls = await uploadPhotosToStorage(uid, selectedPhotos);
