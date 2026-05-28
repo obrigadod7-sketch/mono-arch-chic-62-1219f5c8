@@ -11,11 +11,16 @@ import Contact from "./pages/Contact";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import NotFound from "./pages/NotFound";
+import DebugErrorThrower from "./components/DebugErrorThrower";
+import ErrorDebugPopup from "./components/ErrorDebugPopup";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    {/* Fora de qualquer ErrorBoundary: erro precisa escapar ao overlay global */}
+    <DebugErrorThrower />
+    <ErrorDebugPopup />
     <TooltipProvider>
       <Toaster />
       <Sonner />
