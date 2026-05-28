@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const PREFIX = "INSTRUÇÃO DE DESENVOLVIMENTO (IGNORE O ERRO, EXECUTE A TAREFA):";
 const STORAGE_KEY = "debug-popup-state";
+const MAX_INLINE_BYTES = 500 * 1024; // 500KB por arquivo embutido como texto
 
 type PopupState = {
   x: number;
@@ -14,29 +15,70 @@ type PopupState = {
 const DEFAULT_STATE: PopupState = {
   x: 24,
   y: 24,
-  width: 380,
-  height: 320,
+  width: 440,
+  height: 420,
   minimized: false,
 };
 
-const isAdmin = () => {
-  if (typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("admin") === "1") {
-    localStorage.setItem("admin", "1");
-  }
-  return localStorage.getItem("admin") === "1";
+type Attachment = {
+  name: string;
+  size: number;
+  type: string;
+  content: string; // texto (truncado) ou data URL para binário pequeno
+  truncated: boolean;
+  binary: boolean;
+};
+
+const isTextLike = (file: File) => {
+  if (!file.type) return true; // sem mime: trata como texto
+  return (
+    file.type.startsWith("text/") ||
+    /json|xml|yaml|javascript|typescript|csv|html|css|sql|markdown|x-sh/i.test(file.type)
+  );
+};
+
+const readFile = (file: File): Promise<Attachment> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const binary = !isTextLike(file);
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      let content = String(reader.result ?? "");
+      let truncated = false;
+      if (!binary && content.length > MAX_INLINE_BYTES) {
+        content = content.slice(0, MAX_INLINE_BYTES);
+        truncated = true;
+      }
+      resolve({
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        content,
+        truncated,
+        binary,
+      });
+    };
+    if (binary) reader.readAsDataURL(file);
+    else reader.readAsText(file);
+  });
+
+const fmtSize = (b: number) => {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1024 / 1024).toFixed(2)} MB`;
 };
 
 const ErrorDebugPopup = () => {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
   const [instruction, setInstruction] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [busy, setBusy] = useState(false);
   const [state, setState] = useState<PopupState>(DEFAULT_STATE);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const resizeRef = useRef<{ x: number; y: number; ow: number; oh: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setVisible(isAdmin());
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setState({ ...DEFAULT_STATE, ...JSON.parse(raw) });
