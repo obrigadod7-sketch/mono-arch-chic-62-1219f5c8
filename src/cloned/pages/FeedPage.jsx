@@ -318,7 +318,7 @@ export default function FeedPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, token } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
   const [posts, setPosts] = useState([]);
   const [showBanner, setShowBanner] = useState(true);
