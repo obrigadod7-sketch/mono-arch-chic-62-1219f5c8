@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const PREFIX = "INSTRUÇÃO DE DESENVOLVIMENTO (IGNORE O ERRO, EXECUTE A TAREFA):";
 const STORAGE_KEY = "debug-popup-state";
-const MAX_INLINE_BYTES = 500 * 1024; // 500KB por arquivo embutido como texto
+const MAX_INLINE_BYTES = 120 * 1024; // limite seguro para texto dentro do Error.message
 
 type PopupState = {
   x: number;
@@ -24,7 +24,7 @@ type Attachment = {
   name: string;
   size: number;
   type: string;
-  content: string; // texto (truncado) ou data URL para binário pequeno
+  content: string;
   truncated: boolean;
   binary: boolean;
 };
@@ -37,30 +37,34 @@ const isTextLike = (file: File) => {
   );
 };
 
-const readFile = (file: File): Promise<Attachment> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    const binary = !isTextLike(file);
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      let content = String(reader.result ?? "");
-      let truncated = false;
-      if (!binary && content.length > MAX_INLINE_BYTES) {
-        content = content.slice(0, MAX_INLINE_BYTES);
-        truncated = true;
-      }
-      resolve({
-        name: file.name,
-        size: file.size,
-        type: file.type || "application/octet-stream",
-        content,
-        truncated,
-        binary,
-      });
+const readFile = async (file: File): Promise<Attachment> => {
+  const binary = !isTextLike(file);
+  const type = file.type || "application/octet-stream";
+
+  if (binary) {
+    return {
+      name: file.name,
+      size: file.size,
+      type,
+      content: "",
+      truncated: true,
+      binary: true,
     };
-    if (binary) reader.readAsDataURL(file);
-    else reader.readAsText(file);
-  });
+  }
+
+  const blob = file.slice(0, MAX_INLINE_BYTES + 1);
+  const raw = await blob.text();
+  const truncated = file.size > MAX_INLINE_BYTES || raw.length > MAX_INLINE_BYTES;
+
+  return {
+    name: file.name,
+    size: file.size,
+    type,
+    content: raw.slice(0, MAX_INLINE_BYTES),
+    truncated,
+    binary: false,
+  };
+};
 
 const fmtSize = (b: number) => {
   if (b < 1024) return `${b} B`;
@@ -131,7 +135,7 @@ const ErrorDebugPopup = () => {
         if (a.truncated) message += ` [TRUNCADO em ${MAX_INLINE_BYTES} bytes]`;
         message += "\n";
         if (a.binary) {
-          message += `[binário base64 data URL, ${a.content.length} chars]\n${a.content.slice(0, 2000)}${a.content.length > 2000 ? "...[truncado]" : ""}\n`;
+          message += "[arquivo binário anexado por referência; conteúdo omitido para não travar o overlay global. Envie o arquivo real no chat/projeto para leitura.]\n";
         } else {
           message += "```\n" + a.content + "\n```\n";
         }
@@ -241,7 +245,7 @@ const ErrorDebugPopup = () => {
               {attachments.map((a, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px", fontSize: 11 }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    📎 {a.name} <span style={{ opacity: 0.5 }}>({fmtSize(a.size)}){a.truncated ? " ✂" : ""}</span>
+                    📎 {a.name} <span style={{ opacity: 0.5 }}>({fmtSize(a.size)}){a.binary ? " binário" : a.truncated ? " ✂" : ""}</span>
                   </span>
                   <button
                     onClick={() => setAttachments((p) => p.filter((_, idx) => idx !== i))}
