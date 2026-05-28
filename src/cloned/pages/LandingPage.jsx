@@ -28,21 +28,34 @@ export default function LandingPage() {
     >
       {/* Header */}
       <header className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-orange-400 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-              W
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center sm:justify-between gap-4">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-orange-400 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                W
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold">
+                  <span className="text-green-500">PertoDeMim</span>
+                  <span className="text-orange-500">Servicos</span>
+                </span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wide">Trabalho em Goiás</span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold">
-                <span className="text-green-500">PertoDeMim</span>
-                <span className="text-orange-500">Servicos</span>
-              </span>
-              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Trabalho em Goiás</span>
+            <div className="flex sm:hidden items-center space-x-1 text-xs">
+              {['PT', 'FR', 'EN', 'ES'].map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => changeLanguage(lang)}
+                  className={`px-2 py-1 rounded ${language === lang ? 'bg-green-100 text-green-700 font-semibold' : 'text-gray-600'}`}
+                >
+                  {lang}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1 text-xs sm:text-sm">
+          <div className="flex flex-col sm:flex-row items-center w-full sm:w-auto gap-3 sm:gap-3">
+            <div className="hidden sm:flex items-center space-x-1 text-sm">
               {['PT', 'FR', 'EN', 'ES'].map((lang) => (
                 <button
                   key={lang}
@@ -54,24 +67,27 @@ export default function LandingPage() {
                 </button>
               ))}
             </div>
-            <Button
-              variant="outline"
-              onClick={() => openAuth('login')}
-              className="border-gray-300 rounded-full"
-              data-testid="landing-login-btn"
-            >
-              {t('login') || 'Entrar'}
-            </Button>
-            <Button
-              onClick={() => openAuth('signup')}
-              className="bg-gray-900 hover:bg-gray-800 text-white rounded-full"
-              data-testid="landing-register-btn"
-            >
-              {t('register') || 'Criar conta'}
-            </Button>
+            <div className="flex items-center justify-center gap-3 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => openAuth('login')}
+                className="border-gray-300 rounded-full flex-1 sm:flex-none"
+                data-testid="landing-login-btn"
+              >
+                {t('login') || 'Entrar'}
+              </Button>
+              <Button
+                onClick={() => openAuth('signup')}
+                className="bg-gray-900 hover:bg-gray-800 text-white rounded-full flex-1 sm:flex-none"
+                data-testid="landing-register-btn"
+              >
+                {t('register') || 'Criar conta'}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
+
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} mode={authMode} onModeChange={setAuthMode} />
 
@@ -79,8 +95,8 @@ export default function LandingPage() {
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="mb-8">
+          <div className="text-center lg:text-left">
+            <div className="mb-8 flex justify-center lg:justify-start">
               <div className="inline-flex items-center space-x-2 bg-primary/10 px-4 py-2 rounded-full mb-4">
                 <span className="text-primary font-semibold flex items-center space-x-1">
                   <Star className="w-4 h-4 fill-secondary text-secondary" />
@@ -100,11 +116,11 @@ export default function LandingPage() {
             <p className="text-base text-gray-600 mb-4">
               Agronegócio, indústria, comércio, serviços e tecnologia: encontre oportunidades reais perto de você ou anuncie sua vaga em minutos.
             </p>
-            <div className="flex items-center space-x-2 mb-8 text-sm text-gray-600">
+            <div className="flex items-center justify-center lg:justify-start space-x-2 mb-8 text-sm text-gray-600">
               <MapPin className="w-5 h-5 text-primary" />
               <span>Goiânia, Anápolis, Aparecida, Rio Verde, Jataí, Catalão e mais</span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center justify-center lg:justify-start">
               <Button
                 onClick={() => openAuth('signup')}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground h-14 px-8 text-base rounded-full"
@@ -116,11 +132,30 @@ export default function LandingPage() {
               <Button
                 onClick={() => openAuth('signup')}
                 variant="outline"
-                className="border-2 border-secondary text-secondary-foreground bg-secondary/10 hover:bg-secondary/20 h-14 px-8 text-base rounded-full"
+                className="border-2 border-secondary text-gray-900 bg-white hover:bg-secondary/10 h-14 px-8 text-base rounded-full font-semibold"
                 data-testid="cta-want-help"
               >
                 <Briefcase className="w-5 h-5 mr-2" />
                 Publicar Vaga
+              </Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 mb-12 items-center justify-center lg:justify-start">
+              <Button
+                onClick={() => openAuth('signup')}
+                className="bg-green-500 hover:bg-green-600 text-white h-12 px-6 text-sm rounded-full"
+                data-testid="cta-search-services"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Buscar Serviços
+              </Button>
+              <Button
+                onClick={() => navigate('/oferecer-servicos')}
+                variant="outline"
+                className="border-2 border-orange-400 text-orange-600 bg-white hover:bg-orange-50 h-12 px-6 text-sm rounded-full font-semibold"
+                data-testid="cta-offer-services"
+              >
+                <Briefcase className="w-4 h-4 mr-2" />
+                Oferecer Serviços
               </Button>
             </div>
 

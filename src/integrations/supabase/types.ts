@@ -10,10 +10,49 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      calls: {
+        Row: {
+          caller_avatar: string | null
+          caller_id: string
+          caller_name: string | null
+          created_at: string
+          id: string
+          kind: string
+          receiver_id: string
+          room: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          caller_avatar?: string | null
+          caller_id: string
+          caller_name?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          receiver_id: string
+          room: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          caller_avatar?: string | null
+          caller_id?: string
+          caller_name?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          receiver_id?: string
+          room?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_registrations: {
         Row: {
           event_id: string
@@ -295,6 +334,7 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          videos: string[]
         }
         Insert: {
           address?: string | null
@@ -311,6 +351,7 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          videos?: string[]
         }
         Update: {
           address?: string | null
@@ -327,6 +368,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          videos?: string[]
         }
         Relationships: [
           {
@@ -344,6 +386,7 @@ export type Database = {
           bio: string | null
           categories: string[]
           city: string | null
+          cover_url: string | null
           created_at: string
           display_name: string
           id: string
@@ -360,6 +403,7 @@ export type Database = {
           bio?: string | null
           categories?: string[]
           city?: string | null
+          cover_url?: string | null
           created_at?: string
           display_name: string
           id?: string
@@ -376,6 +420,7 @@ export type Database = {
           bio?: string | null
           categories?: string[]
           city?: string | null
+          cover_url?: string | null
           created_at?: string
           display_name?: string
           id?: string
@@ -454,32 +499,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_my_phone: { Args: never; Returns: string }
-      get_my_svc_profile: {
-        Args: never
-        Returns: {
-          avatar_url: string | null
-          bio: string | null
-          categories: string[]
-          city: string | null
-          created_at: string
-          display_name: string
-          id: string
-          lat: number | null
-          lng: number | null
-          phone: string | null
-          rating: number
-          role: string
-          updated_at: string
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "svc_profiles"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      ensure_svc_category: { Args: { _name: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -487,6 +507,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_volunteer_or_helper: { Args: { _uid: string }; Returns: boolean }
       svc_get_or_create_conversation: {
         Args: { _other_user: string }
         Returns: string

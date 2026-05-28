@@ -11,11 +11,11 @@ import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import { getStableDefaultAvatarUrl } from '../lib/authProfile';
 import { supabase } from '@/integrations/supabase/client';
-import paymentPixImg from '@/assets/payment-pix.png';
+
 
 const NAV_DESKTOP = [
   { label: 'Acolhida', icon: HomeIcon, route: '/home' },
-  { label: 'Ofertantes', icon: UsersIcon, route: '/volunteers' },
+  { label: 'Voluntários', icon: UsersIcon, route: '/volunteers' },
   { label: 'Assinatura', icon: BarChart3, route: '/assinatura', active: true },
   { label: 'Mensagens', icon: MessageSquare, route: '/chat' },
 ];
@@ -131,37 +131,44 @@ export default function SubscriptionPage() {
     } catch (e) { console.error(e); }
   };
 
+  // ---- BR Code PIX fixo (estático) ----
+  const FIXED_BRCODE =
+    '00020126580014BR.GOV.BCB.PIX01363ef11200-bebf-4d88-930c-48e84b11cfc4520400005303986540535.905802BR592551.965.652 ERI JONHSON DE6009SAO PAULO610805409000622505219uC1rHtH0iT8qxs19tl986304B464';
+
   const startSubscription = async () => {
     setLoadingPix(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { toast.error('Faça login primeiro'); return; }
-      const { data, error } = await supabase.functions.invoke('pix-brcode', { body: { amount: 35.9 } });
-      if (error || !data?.brcode) throw new Error(error?.message || 'Falha ao gerar PIX');
+
+      const amount = 35.9;
+      const txid = `JRT${Date.now().toString(36).toUpperCase()}`.slice(0, 25);
+      const brcode = FIXED_BRCODE;
 
       const trialEnds = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
       const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const { data: existing } = await supabase
-        .from('svc_subscriptions').select('id').eq('user_id', session.user.id).maybeSingle();
-
-      if (existing) {
-        await supabase.from('svc_subscriptions').update({
-          pix_brcode: data.brcode, pix_txid: data.txid, status: 'pix',
-          amount_brl: 35.9, expires_at: expires,
-        }).eq('id', existing.id);
-      } else {
-        await supabase.from('svc_subscriptions').insert({
-          user_id: session.user.id, pix_brcode: data.brcode, pix_txid: data.txid,
-          status: 'pix', amount_brl: 35.9, trial_ends_at: trialEnds, expires_at: expires,
-        });
-      }
+      try {
+        const { data: existing } = await supabase
+          .from('svc_subscriptions').select('id').eq('user_id', session.user.id).maybeSingle();
+        if (existing) {
+          await supabase.from('svc_subscriptions').update({
+            pix_brcode: brcode, pix_txid: txid, status: 'pix',
+            amount_brl: amount, expires_at: expires,
+          }).eq('id', existing.id);
+        } else {
+          await supabase.from('svc_subscriptions').insert({
+            user_id: session.user.id, pix_brcode: brcode, pix_txid: txid,
+            status: 'pix', amount_brl: amount, trial_ends_at: trialEnds, expires_at: expires,
+          });
+        }
+      } catch (dbErr) { console.warn('[PIX] salvar sub:', dbErr); }
 
       setPixData({
-        brcode: data.brcode,
-        amount: data.amount,
+        brcode,
+        amount,
         trial_ends_at: trialEnds,
-        qr_code_base64: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.brcode)}`,
+        qr_code_base64: `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=M&qzone=3&data=${encodeURIComponent(brcode)}`,
       });
       setShowPaymentModal(true);
       toast.success('Você ganhou 3 dias grátis!');
@@ -414,14 +421,6 @@ export default function SubscriptionPage() {
             <p className="text-center text-xs text-white/90 mt-3">
               3 dias grátis · A partir de R$ 35,90 / mês
             </p>
-            <div className="mt-4 rounded-2xl overflow-hidden bg-black/20 border border-white/20">
-              <img
-                src={paymentPixImg}
-                alt="Exemplo de pagamento via PIX com QR Code"
-                className="w-full h-auto block"
-                loading="lazy"
-              />
-            </div>
           </div>
         </aside>
       </div>
@@ -513,7 +512,7 @@ export default function SubscriptionPage() {
         </button>
         <button onClick={() => navigate('/volunteers')} className="flex flex-col items-center gap-0.5 px-2 py-1 min-w-[60px] text-gray-500">
           <UsersIcon size={22} />
-          <span className="text-[11px] font-medium">Ofertantes</span>
+          <span className="text-[11px] font-medium">Voluntários</span>
         </button>
         <button onClick={() => navigate('/home')} className="flex flex-col items-center -mt-5">
           <div className="w-12 h-12 rounded-full bg-[#16a34a] text-white grid place-items-center shadow-md shadow-green-500/40">

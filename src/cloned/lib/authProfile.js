@@ -22,23 +22,16 @@ export const normalizeAuthUser = (authUser, profile = {}) => {
     avatar: avatarUrl,
     bio: profile.bio || '',
     city: profile.city || metadata.location || '',
+    location: profile.city || metadata.location || '',
+    lat: typeof profile.lat === 'number' ? profile.lat : null,
+    lng: typeof profile.lng === 'number' ? profile.lng : null,
+    cover_url: profile.cover_url || null,
     categories: Array.isArray(profile.categories) ? profile.categories : [],
   };
 };
 
 export const getOrCreateSvcProfile = async (authUser, fallback = {}) => {
   if (!authUser?.id) return null;
-
-  const metadata = authUser.user_metadata || {};
-  const displayName = fallback.display_name || metadata.display_name || authUser.email?.split('@')[0] || 'Usuário';
-  const defaultProfile = {
-    user_id: authUser.id,
-    display_name: displayName,
-    role: fallback.role || metadata.role || 'migrant',
-    city: fallback.city || metadata.location || '',
-    avatar_url: fallback.avatar_url || metadata.avatar_url || getStableDefaultAvatarUrl(authUser),
-    categories: Array.isArray(fallback.categories) ? fallback.categories : [],
-  };
 
   const { data: existing, error: selectError } = await supabase
     .from('svc_profiles')
@@ -61,32 +54,24 @@ export const getOrCreateSvcProfile = async (authUser, fallback = {}) => {
     return existing;
   }
 
-  const { data: rpcProfile, error: rpcError } = await supabase.rpc('get_or_create_own_svc_profile', {
-    _display_name: defaultProfile.display_name,
-    _avatar_url: defaultProfile.avatar_url,
-    _city: defaultProfile.city || null,
-    _categories: defaultProfile.categories,
-  });
-
-  if (!rpcError && rpcProfile) return rpcProfile;
+  const metadata = authUser.user_metadata || {};
+  const displayName = fallback.display_name || metadata.display_name || authUser.email?.split('@')[0] || 'Usuário';
+  const role = fallback.role || metadata.role || 'migrant';
 
   const { data: created, error: insertError } = await supabase
     .from('svc_profiles')
     .insert({
-      user_id: defaultProfile.user_id,
-      display_name: defaultProfile.display_name,
-      role: defaultProfile.role,
-      city: defaultProfile.city || null,
-      avatar_url: defaultProfile.avatar_url,
-      categories: defaultProfile.categories,
+      user_id: authUser.id,
+      display_name: displayName,
+      role,
+      city: fallback.city || metadata.location || null,
+      avatar_url: fallback.avatar_url || metadata.avatar_url || getStableDefaultAvatarUrl(authUser),
+      categories: Array.isArray(fallback.categories) ? fallback.categories : [],
     })
     .select('*')
     .single();
 
-  if (insertError) {
-    console.warn('Could not create svc profile, using session fallback:', insertError);
-    return defaultProfile;
-  }
+  if (insertError) throw insertError;
   return created;
 };
 
