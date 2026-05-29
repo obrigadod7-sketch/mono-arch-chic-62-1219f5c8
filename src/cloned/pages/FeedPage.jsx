@@ -26,6 +26,20 @@ const saveLocalPosts = (posts) => {
   try { localStorage.setItem(LOCAL_KEY, JSON.stringify(posts.slice(0, 50))); } catch {}
 };
 
+let svcPostsVideosSupport;
+
+const isMissingVideosColumnError = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return error?.code === '42703' || error?.code === 'PGRST204' || (message.includes('videos') && message.includes('column'));
+};
+
+const supportsSvcPostVideos = async () => {
+  if (typeof svcPostsVideosSupport === 'boolean') return svcPostsVideosSupport;
+  const { error } = await supabase.from('svc_posts').select('id,videos').limit(1);
+  svcPostsVideosSupport = !isMissingVideosColumnError(error);
+  return svcPostsVideosSupport;
+};
+
 const CATEGORY_OPTIONS = WORK_SERVICE_CATEGORIES
   .filter((category) => category.value !== 'outros')
   .map(({ value, label }) => ({ value, label }));
@@ -741,7 +755,6 @@ export default function FeedPage() {
         title: postDescription.slice(0, 60),
         description: postDescription,
         photos: uploadedUrls,
-        videos: uploadedVideos,
         budget_range: postBudget || null,
         category_slug: categorySlug,
         address: postAddress || null,
@@ -751,6 +764,9 @@ export default function FeedPage() {
         status: 'open',
       };
 
+      const canSaveVideos = uploadedVideos.length > 0 ? await supportsSvcPostVideos() : false;
+      if (canSaveVideos) insertPayload.videos = uploadedVideos;
+
       if (!authUser) {
         publishLocalPost(uid, publishMode, uploadedUrls, uploadedVideos);
         toast.success(publishMode === 'need' ? 'Sua demanda foi publicada neste aparelho!' : 'Seu serviço foi publicado neste aparelho!');
@@ -759,15 +775,31 @@ export default function FeedPage() {
         return;
       }
 
-      const { data: inserted, error } = await supabase
+      let { data: inserted, error } = await supabase
         .from('svc_posts')
         .insert(insertPayload)
         .select('id')
         .single();
+
+      if (isMissingVideosColumnError(error) && insertPayload.videos) {
+        svcPostsVideosSupport = false;
+        const { videos, ...payloadWithoutVideos } = insertPayload;
+        ({ data: inserted, error } = await supabase
+          .from('svc_posts')
+          .insert(payloadWithoutVideos)
+          .select('id')
+          .single());
+      }
+
       if (error || !inserted?.id) {
         console.error('svc_posts insert failed', error);
         toast.error(`Erro ao publicar: ${error?.message || 'tente novamente'}`);
         return;
+      }
+
+      if (uploadedVideos.length > 0 && !insertPayload.videos) {
+        publishLocalPost(uid, publishMode, uploadedUrls, uploadedVideos);
+        toast.info('Publicado no banco. O vídeo ficará visível neste aparelho até a coluna videos ser ativada no backend.');
       }
 
       toast.success(publishMode === 'need' ? 'Sua demanda foi publicada!' : 'Seu serviço foi publicado!');
