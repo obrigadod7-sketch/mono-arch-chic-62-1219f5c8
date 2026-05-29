@@ -487,8 +487,14 @@ export default function FeedPage() {
     setPostBudget(mode === 'need' ? 'Sob orçamento' : 'A combinar');
     setPostCategory('reformas');
     setCustomPostCategory('');
-    setSelectedPhotos([]);
-    setSelectedVideos([]);
+    setSelectedPhotos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+    setSelectedVideos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
     setShowCreateModal(true);
   };
 
@@ -500,8 +506,8 @@ export default function FeedPage() {
       category: postCategory === CUSTOM_CATEGORY_VALUE ? (customPostCategory.trim() || 'outros') : postCategory,
       title: postDescription.slice(0, 60),
       description: postDescription,
-      images: uploadedUrls.length ? uploadedUrls : selectedPhotos.map((photo) => photo.dataUrl).filter(Boolean),
-      videos: uploadedVideos.length ? uploadedVideos : selectedVideos.map((video) => video.dataUrl).filter(Boolean),
+      images: uploadedUrls.length ? uploadedUrls : selectedPhotos.map((photo) => photo.previewUrl || photo.dataUrl).filter(Boolean),
+      videos: uploadedVideos.length ? uploadedVideos : selectedVideos.map((video) => video.previewUrl || video.dataUrl).filter(Boolean),
       budget: postBudget || null,
       likes_count: 0,
       comments_count: 0,
@@ -519,8 +525,14 @@ export default function FeedPage() {
     setShowCreateModal(false);
     setPostDescription('');
     setCustomPostCategory('');
-    setSelectedPhotos([]);
-    setSelectedVideos([]);
+    setSelectedPhotos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+    setSelectedVideos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
   };
 
   const requireLoginForPublish = (mode = 'need') => {
