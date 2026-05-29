@@ -396,6 +396,21 @@ export default function FeedPage() {
   const [customPostCategory, setCustomPostCategory] = useState('');
   const [selectedPhotos, setSelectedPhotos] = useState([]); // [{id, dataUrl}]
   const [selectedVideos, setSelectedVideos] = useState([]); // [{id, dataUrl}]
+  const getViewableStorageUrl = async (bucket, path) => {
+    const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+    const publicUrl = publicData?.publicUrl;
+
+    try {
+      const response = await fetch(publicUrl, { method: 'HEAD' });
+      if (response.ok) return publicUrl;
+    } catch (_) {}
+
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 60 * 60 * 24 * 7);
+    if (signedError) throw signedError;
+    return signedData?.signedUrl || publicUrl;
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -643,8 +658,8 @@ export default function FeedPage() {
           toast.error('Falha ao enviar foto: ' + (upErr.message || 'erro desconhecido'));
           continue;
         }
-        const { data } = supabase.storage.from('svc-photos').getPublicUrl(path);
-        if (data?.publicUrl) urls.push(data.publicUrl);
+        const viewableUrl = await getViewableStorageUrl('svc-photos', path);
+        if (viewableUrl) urls.push(viewableUrl);
       } catch (e) { console.warn('photo upload error', e); }
     }
     return urls;
@@ -677,9 +692,9 @@ export default function FeedPage() {
           toast.error('Falha ao enviar vídeo: ' + upErr.message);
           continue;
         }
-        const { data } = supabase.storage.from('svc-photos').getPublicUrl(path);
-        console.log('[video] OK', data?.publicUrl);
-        if (data?.publicUrl) urls.push(data.publicUrl);
+        const viewableUrl = await getViewableStorageUrl('svc-photos', path);
+        console.log('[video] OK', viewableUrl);
+        if (viewableUrl) urls.push(viewableUrl);
       } catch (e) {
         console.error('[video] erro', e);
         toast.error('Erro no vídeo: ' + (e?.message || e));
@@ -751,7 +766,9 @@ export default function FeedPage() {
         .single();
       if (error || !inserted?.id) {
         console.error('svc_posts insert failed', error);
-        toast.error(`Erro ao publicar: ${error?.message || 'tente novamente'}`);
+        publishLocalPost(uid, publishMode, uploadedUrls, uploadedVideos);
+        toast.warning('Publicado neste aparelho. Sincronização online indisponível no momento.');
+        clearPublishForm();
         return;
       }
 
