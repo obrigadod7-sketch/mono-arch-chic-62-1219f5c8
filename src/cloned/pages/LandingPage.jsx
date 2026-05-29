@@ -103,23 +103,23 @@ export default function LandingPage() {
                   <Star className="w-4 h-4 fill-secondary text-secondary" />
                   <span>4.9/5</span>
                 </span>
-                <span className="text-gray-600 text-sm">+2.000 vagas preenchidas em Goiás</span>
+                <span className="text-gray-600 text-sm">+10.000 conexões solidárias ao redor do mundo</span>
               </div>
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold mb-6">
-              Seu próximo emprego
+              Serviços de verdade,
               <br />
-              <span className="text-primary">está aqui em Goiás</span>
+              <span className="text-primary">com alma solidária</span>
             </h1>
             <p className="text-lg text-gray-700 mb-2 font-medium">
-              Conectamos trabalhadores e empresas em todo o estado — do Cerrado às grandes cidades.
+              A rede que une quem precisa de um serviço a quem tem talento — e a quem quer ajudar sem esperar nada em troca.
             </p>
             <p className="text-base text-gray-600 mb-4">
-              Agronegócio, indústria, comércio, serviços e tecnologia: encontre oportunidades reais perto de você ou anuncie sua vaga em minutos.
+              Encontre profissionais perto de você, ofereça seu trabalho ou doe seu tempo como voluntário. Aqui cada conexão constrói uma comunidade mais forte.
             </p>
             <div className="flex items-center justify-center lg:justify-start space-x-2 mb-8 text-sm text-gray-600">
               <MapPin className="w-5 h-5 text-primary" />
-              <span>Goiânia, Anápolis, Aparecida, Rio Verde, Jataí, Catalão e mais</span>
+              <span>Brasil, França, Portugal, Itália, Suíça, Espanha e mais</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center justify-center lg:justify-start">
               <Button
