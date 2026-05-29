@@ -32,6 +32,20 @@ type Post = {
 };
 type ProfileLite = { user_id: string; display_name: string; avatar_url: string | null };
 
+let svcPostsVideosSupport: boolean | undefined;
+
+const isMissingVideosColumnError = (error: any) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  return error?.code === '42703' || error?.code === 'PGRST204' || (message.includes('videos') && message.includes('column'));
+};
+
+const supportsSvcPostVideos = async () => {
+  if (typeof svcPostsVideosSupport === 'boolean') return svcPostsVideosSupport;
+  const { error } = await supabase.from('svc_posts').select('id,videos').limit(1);
+  svcPostsVideosSupport = !isMissingVideosColumnError(error);
+  return svcPostsVideosSupport;
+};
+
 export default function ServicosFeed() {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
@@ -144,19 +158,28 @@ export default function ServicosFeed() {
         const { data } = supabase.storage.from('svc-photos').getPublicUrl(path);
         videoUrls.push(data.publicUrl);
       }
-      const { error } = await supabase.from('svc_posts').insert({
+      const payload: any = {
         user_id: userId,
         title: title.trim(),
         description: description.trim(),
         photos: photoUrls,
-        videos: videoUrls,
         budget_range: budget.trim() || null,
         category_slug: categorySlug || null,
         address: address.trim() || null,
         post_type: postType,
         status: 'open',
-      });
+      };
+      if (videoUrls.length > 0 && await supportsSvcPostVideos()) payload.videos = videoUrls;
+      let { error } = await supabase.from('svc_posts').insert(payload);
+      if (isMissingVideosColumnError(error) && payload.videos) {
+        svcPostsVideosSupport = false;
+        delete payload.videos;
+        ({ error } = await supabase.from('svc_posts').insert(payload));
+      }
       if (error) throw error;
+      if (videoUrls.length > 0 && !payload.videos) {
+        toast({ title: 'Publicado', description: 'O post foi salvo; o vídeo depende da coluna videos estar ativa no backend.' });
+      }
       toast({ title: 'Demanda publicada!' });
       setOpen(false);
       resetForm();
