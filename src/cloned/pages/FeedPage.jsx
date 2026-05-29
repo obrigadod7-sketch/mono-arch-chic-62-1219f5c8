@@ -615,13 +615,14 @@ export default function FeedPage() {
         e.target.value = '';
         return;
       }
+      const previewUrl = URL.createObjectURL(file);
       setSelectedVideos((prev) => [
         ...prev,
         {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
-          dataUrl: URL.createObjectURL(file),
-          previewUrl: URL.createObjectURL(file),
+          dataUrl: previewUrl,
+          previewUrl,
         },
       ]);
       toast.success('Vídeo adicionado!');
