@@ -108,14 +108,6 @@ const getPublishSessionUser = async () => {
     if (refreshedSession?.user) return refreshedSession.user;
   } catch (_) {}
 
-  // Fallback: sign in anonymously so the post can be persisted in svc_posts
-  try {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (!error && data?.user) return data.user;
-    if (error) console.warn('signInAnonymously failed', error);
-  } catch (e) {
-    console.warn('signInAnonymously threw', e);
-  }
   return null;
 };
 
@@ -402,8 +394,17 @@ export default function FeedPage() {
   const [postBudget, setPostBudget] = useState('Sob orçamento');
   const [postCategory, setPostCategory] = useState('reformas');
   const [customPostCategory, setCustomPostCategory] = useState('');
-  const [selectedPhotos, setSelectedPhotos] = useState([]); // [{id, dataUrl}]
-  const [selectedVideos, setSelectedVideos] = useState([]); // [{id, dataUrl}]
+  const [selectedPhotos, setSelectedPhotos] = useState([]); // [{id, file, dataUrl, previewUrl}]
+  const [selectedVideos, setSelectedVideos] = useState([]); // [{id, file, dataUrl, previewUrl}]
+  const selectedPhotosRef = React.useRef([]);
+  const selectedVideosRef = React.useRef([]);
+
+  useEffect(() => { selectedPhotosRef.current = selectedPhotos; }, [selectedPhotos]);
+  useEffect(() => { selectedVideosRef.current = selectedVideos; }, [selectedVideos]);
+  useEffect(() => () => {
+    selectedPhotosRef.current.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+    selectedVideosRef.current.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+  }, []);
 
   useEffect(() => {
     fetchPosts();
@@ -486,8 +487,14 @@ export default function FeedPage() {
     setPostBudget(mode === 'need' ? 'Sob orçamento' : 'A combinar');
     setPostCategory('reformas');
     setCustomPostCategory('');
-    setSelectedPhotos([]);
-    setSelectedVideos([]);
+    setSelectedPhotos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+    setSelectedVideos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
     setShowCreateModal(true);
   };
 
@@ -499,8 +506,8 @@ export default function FeedPage() {
       category: postCategory === CUSTOM_CATEGORY_VALUE ? (customPostCategory.trim() || 'outros') : postCategory,
       title: postDescription.slice(0, 60),
       description: postDescription,
-      images: uploadedUrls.length ? uploadedUrls : selectedPhotos.map((photo) => photo.dataUrl).filter(Boolean),
-      videos: uploadedVideos.length ? uploadedVideos : selectedVideos.map((video) => video.dataUrl).filter(Boolean),
+      images: uploadedUrls.length ? uploadedUrls : selectedPhotos.map((photo) => photo.dataUrl || photo.previewUrl).filter(Boolean),
+      videos: uploadedVideos.length ? uploadedVideos : selectedVideos.map((video) => video.dataUrl || video.previewUrl).filter(Boolean),
       budget: postBudget || null,
       likes_count: 0,
       comments_count: 0,
@@ -518,8 +525,14 @@ export default function FeedPage() {
     setShowCreateModal(false);
     setPostDescription('');
     setCustomPostCategory('');
-    setSelectedPhotos([]);
-    setSelectedVideos([]);
+    setSelectedPhotos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+    setSelectedVideos((prev) => {
+      prev.forEach((item) => item?.previewUrl && URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
   };
 
   const requireLoginForPublish = (mode = 'need') => {
@@ -575,7 +588,12 @@ export default function FeedPage() {
       reader.onloadend = () => {
         setSelectedPhotos((prev) => [
           ...prev,
-          { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, dataUrl: reader.result },
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            file,
+            dataUrl: reader.result,
+            previewUrl: URL.createObjectURL(file),
+          },
         ]);
       };
       reader.readAsDataURL(file);
@@ -597,12 +615,14 @@ export default function FeedPage() {
         e.target.value = '';
         return;
       }
+      const previewUrl = URL.createObjectURL(file);
       setSelectedVideos((prev) => [
         ...prev,
         {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
-          dataUrl: URL.createObjectURL(file),
+          dataUrl: previewUrl,
+          previewUrl,
         },
       ]);
       toast.success('Vídeo adicionado!');
@@ -610,8 +630,17 @@ export default function FeedPage() {
     e.target.value = '';
   };
 
-  const removePhoto = (id) => setSelectedPhotos((prev) => prev.filter((p) => p.id !== id));
-  const removeVideo = (id) => setSelectedVideos((prev) => prev.filter((v) => v.id !== id));
+  const removePhoto = (id) => setSelectedPhotos((prev) => {
+    const target = prev.find((p) => p.id === id);
+    if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+    return prev.filter((p) => p.id !== id);
+  });
+  const removeVideo = (id) => setSelectedVideos((prev) => {
+    const target = prev.find((v) => v.id === id);
+    if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+    if (target?.dataUrl && target.dataUrl !== target.previewUrl) URL.revokeObjectURL(target.dataUrl);
+    return prev.filter((v) => v.id !== id);
+  });
 
   const dataUrlToBlob = (dataUrl) => {
     const [meta, b64] = dataUrl.split(',');
@@ -625,9 +654,9 @@ export default function FeedPage() {
   const uploadPhotosToStorage = async (uid, photos) => {
     const urls = [];
     for (const p of photos) {
-      if (!p?.dataUrl) continue;
+      if (!p?.file && !p?.dataUrl) continue;
       try {
-        const blob = dataUrlToBlob(p.dataUrl);
+        const blob = p.file || dataUrlToBlob(p.dataUrl);
         const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
         const path = `${uid}/posts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: upErr } = await supabase.storage.from('svc-photos').upload(path, blob, {
@@ -650,7 +679,7 @@ export default function FeedPage() {
         const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
         const path = `${uid}/posts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         console.log('[video] enviando', { path, type: file.type, size: file.size });
-        const { error: upErr } = await supabase.storage.from('social-media').upload(path, file, {
+        const { error: upErr } = await supabase.storage.from('svc-photos').upload(path, file, {
           contentType: file.type || 'video/mp4', upsert: false,
         });
         if (upErr) {
@@ -658,7 +687,7 @@ export default function FeedPage() {
           toast.error('Falha ao enviar vídeo: ' + upErr.message);
           continue;
         }
-        const { data } = supabase.storage.from('social-media').getPublicUrl(path);
+        const { data } = supabase.storage.from('svc-photos').getPublicUrl(path);
         console.log('[video] OK', data?.publicUrl);
         if (data?.publicUrl) urls.push(data.publicUrl);
       } catch (e) {
@@ -688,7 +717,7 @@ export default function FeedPage() {
       if (!activeUser) {
         const guestId = `guest-${Date.now()}`;
         publishLocalPost(guestId, publishMode);
-        toast.success(publishMode === 'need' ? 'Sua demanda foi publicada!' : 'Seu serviço foi publicado!');
+        toast.success(publishMode === 'need' ? 'Sua demanda foi publicada neste aparelho!' : 'Seu serviço foi publicado neste aparelho!');
         clearPublishForm();
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
@@ -724,7 +753,7 @@ export default function FeedPage() {
 
       if (!authUser) {
         publishLocalPost(uid, publishMode, uploadedUrls, uploadedVideos);
-        toast.success(publishMode === 'need' ? 'Sua demanda foi publicada!' : 'Seu serviço foi publicado!');
+        toast.success(publishMode === 'need' ? 'Sua demanda foi publicada neste aparelho!' : 'Seu serviço foi publicado neste aparelho!');
         clearPublishForm();
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
