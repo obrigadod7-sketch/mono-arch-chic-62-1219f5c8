@@ -5,8 +5,8 @@ import { Button } from '../components/ui/button';
 import { Search, Briefcase, MapPin, Star } from 'lucide-react';
 import i18n from '../i18n';
 import AuthModal from '../components/AuthModal';
-import goiasTrabalhoImg from '@/assets/goias-trabalho.jpg';
 import CountryMonuments from '@/components/CountryMonuments';
+import heroImg from '@/assets/monument-brasil.jpg';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -179,8 +179,8 @@ export default function LandingPage() {
           <div className="relative">
             <div className="rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src={goiasTrabalhoImg}
-                alt="Trabalhadores de Goiás — agronegócio, indústria e serviços"
+                src={heroImg}
+                alt="Comunidade global — conectando pessoas em todo o mundo"
                 width={1024}
                 height={1024}
                 className="w-full h-[500px] object-cover"
