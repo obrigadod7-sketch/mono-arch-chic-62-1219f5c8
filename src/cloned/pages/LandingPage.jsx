@@ -6,6 +6,7 @@ import { Search, Briefcase, MapPin, Star } from 'lucide-react';
 import i18n from '../i18n';
 import AuthModal from '../components/AuthModal';
 import goiasTrabalhoImg from '@/assets/goias-trabalho.jpg';
+import CountryMonuments from '@/components/CountryMonuments';
 
 export default function LandingPage() {
   const navigate = useNavigate();
