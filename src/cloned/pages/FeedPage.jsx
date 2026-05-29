@@ -618,16 +618,31 @@ export default function FeedPage() {
 
   const uploadPhotosToStorage = async (uid, photos) => {
     const urls = [];
+    // RLS exige que o primeiro segmento do path seja auth.uid().
+    // Garantimos isso pegando a sessão fresca antes de enviar.
+    let safeUid = uid;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) safeUid = session.user.id;
+      else {
+        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+        if (refreshed?.user?.id) safeUid = refreshed.user.id;
+      }
+    } catch (_) {}
     for (const p of photos) {
       if (!p?.dataUrl) continue;
       try {
         const blob = dataUrlToBlob(p.dataUrl);
         const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-        const path = `${uid}/posts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${safeUid}/posts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: upErr } = await supabase.storage.from('svc-photos').upload(path, blob, {
           contentType: blob.type, upsert: false,
         });
-        if (upErr) { console.warn('photo upload failed', upErr); continue; }
+        if (upErr) {
+          console.warn('photo upload failed', upErr);
+          toast.error('Falha ao enviar foto: ' + (upErr.message || 'erro desconhecido'));
+          continue;
+        }
         const { data } = supabase.storage.from('svc-photos').getPublicUrl(path);
         if (data?.publicUrl) urls.push(data.publicUrl);
       } catch (e) { console.warn('photo upload error', e); }
@@ -637,14 +652,24 @@ export default function FeedPage() {
 
   const uploadVideosToStorage = async (uid, videos) => {
     const urls = [];
+    let safeUid = uid;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) safeUid = session.user.id;
+      else {
+        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+        if (refreshed?.user?.id) safeUid = refreshed.user.id;
+      }
+    } catch (_) {}
     for (const v of videos) {
       if (!v?.file) { console.warn('[video] item sem file', v); continue; }
       try {
         const file = v.file;
         const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
-        const path = `${uid}/posts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${safeUid}/posts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         console.log('[video] enviando', { path, type: file.type, size: file.size });
-        const { error: upErr } = await supabase.storage.from('social-media').upload(path, file, {
+        // Usamos o bucket svc-photos (também aceita vídeos) com policies já existentes.
+        const { error: upErr } = await supabase.storage.from('svc-photos').upload(path, file, {
           contentType: file.type || 'video/mp4', upsert: false,
         });
         if (upErr) {
@@ -652,7 +677,7 @@ export default function FeedPage() {
           toast.error('Falha ao enviar vídeo: ' + upErr.message);
           continue;
         }
-        const { data } = supabase.storage.from('social-media').getPublicUrl(path);
+        const { data } = supabase.storage.from('svc-photos').getPublicUrl(path);
         console.log('[video] OK', data?.publicUrl);
         if (data?.publicUrl) urls.push(data.publicUrl);
       } catch (e) {
