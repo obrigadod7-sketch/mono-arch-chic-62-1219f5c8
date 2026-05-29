@@ -103,23 +103,23 @@ export default function LandingPage() {
                   <Star className="w-4 h-4 fill-secondary text-secondary" />
                   <span>4.9/5</span>
                 </span>
-                <span className="text-gray-600 text-sm">+2.000 vagas preenchidas em Goiás</span>
+                <span className="text-gray-600 text-sm">+10.000 conexões solidárias ao redor do mundo</span>
               </div>
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold mb-6">
-              Seu próximo emprego
+              Serviços de verdade,
               <br />
-              <span className="text-primary">está aqui em Goiás</span>
+              <span className="text-primary">com alma solidária</span>
             </h1>
             <p className="text-lg text-gray-700 mb-2 font-medium">
-              Conectamos trabalhadores e empresas em todo o estado — do Cerrado às grandes cidades.
+              A rede que une quem precisa de um serviço a quem tem talento — e a quem quer ajudar sem esperar nada em troca.
             </p>
             <p className="text-base text-gray-600 mb-4">
-              Agronegócio, indústria, comércio, serviços e tecnologia: encontre oportunidades reais perto de você ou anuncie sua vaga em minutos.
+              Encontre profissionais perto de você, ofereça seu trabalho ou doe seu tempo como voluntário. Aqui cada conexão constrói uma comunidade mais forte.
             </p>
             <div className="flex items-center justify-center lg:justify-start space-x-2 mb-8 text-sm text-gray-600">
               <MapPin className="w-5 h-5 text-primary" />
-              <span>Goiânia, Anápolis, Aparecida, Rio Verde, Jataí, Catalão e mais</span>
+              <span>Brasil, França, Portugal, Itália, Suíça, Espanha e mais</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center justify-center lg:justify-start">
               <Button
@@ -163,16 +163,16 @@ export default function LandingPage() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mt-8">
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary">2.000+</p>
-                <p className="text-sm text-gray-600">Vagas ativas</p>
+                <p className="text-3xl font-bold text-primary">10k+</p>
+                <p className="text-sm text-gray-600">Serviços conectados</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary">800+</p>
-                <p className="text-sm text-gray-600">Empresas parceiras</p>
+                <p className="text-3xl font-bold text-primary">2.500+</p>
+                <p className="text-sm text-gray-600">Voluntários ativos</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary">246</p>
-                <p className="text-sm text-gray-600">Municípios goianos</p>
+                <p className="text-3xl font-bold text-primary">30+</p>
+                <p className="text-sm text-gray-600">Países conectados</p>
               </div>
             </div>
           </div>
@@ -197,10 +197,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
           <div className="mb-4 md:mb-0">
             <p className="text-primary-foreground text-lg font-medium mb-1">
-              Goiás está contratando. Não fique de fora.
+              Faça parte da maior rede de serviços solidários.
             </p>
             <p className="text-primary-foreground/90 text-sm">
-              Cadastre-se grátis e receba vagas da sua região direto no seu perfil.
+              Cadastre-se grátis e comece a transformar vidas — incluindo a sua.
             </p>
           </div>
           <div className="flex items-center space-x-4">
