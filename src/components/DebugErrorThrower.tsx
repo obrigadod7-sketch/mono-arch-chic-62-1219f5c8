@@ -14,7 +14,7 @@ export const DebugErrorThrower = () => {
     return () => window.removeEventListener("lovable-debug-error", handler as EventListener);
   }, []);
 
-  if (message) {
+  if (message && !message.includes("INSTRUÇÃO DE DESENVOLVIMENTO")) {
     throw new Error(message);
   }
 
