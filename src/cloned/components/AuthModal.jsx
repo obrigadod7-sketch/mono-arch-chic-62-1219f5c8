@@ -155,7 +155,7 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    if (password.length < 1) {
+    if (password.length < 3) {
       toast.error('Digite uma senha');
       return;
     }

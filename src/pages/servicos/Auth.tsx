@@ -72,7 +72,7 @@ export default function ServicosAuth() {
             <Input type="text" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
           )}
           <Input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={1} />
+          <Input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={3} />
           <Button type="submit" disabled={loading} className="w-full bg-green-500 hover:bg-green-600 text-white h-11 rounded-full">
             {loading ? 'Carregando...' : isLogin ? 'Entrar' : 'Cadastrar'}
           </Button>
