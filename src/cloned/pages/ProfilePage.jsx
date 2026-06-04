@@ -1140,7 +1140,7 @@ function ChangePasswordCard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 1) {
+    if (newPassword.length < 3) {
       toast.error('Digite uma senha');
       return;
     }
