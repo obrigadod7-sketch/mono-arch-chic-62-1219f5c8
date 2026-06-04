@@ -1,4 +1,4 @@
 project_id = "kzlxysxvvlupjtrmxqmb"
 
 [auth]
-minimum_password_length = 1
+minimum_password_length = 3
