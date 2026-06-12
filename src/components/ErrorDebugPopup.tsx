@@ -460,6 +460,7 @@ export const ErrorDebugPopup: React.FC = () => {
   const totalKb = Math.round(files.reduce((a, f) => a + f.size, 0) / 1024);
 
   if (hidden) return null;
+  if (!isAdmin) return null;
 
   return (
     <div
