@@ -348,7 +348,7 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
                   required
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Prénom"
+                  placeholder="Nome"
                   className="h-11 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   data-testid="signup-firstname"
                 />
@@ -356,7 +356,7 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
                   required
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Nom"
+                  placeholder="Sobrenome"
                   className="h-11 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   data-testid="signup-lastname"
                 />
@@ -366,7 +366,7 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
                 <input
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder={locating ? 'Detectando...' : 'Adresse postale'}
+                  placeholder={locating ? 'Detectando...' : 'Endereço'}
                   className="w-full h-11 pl-3 pr-10 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   data-testid="signup-location"
                 />
@@ -386,7 +386,7 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
                 type="tel"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
-                placeholder="Mobile"
+                placeholder="Celular"
                 className="w-full h-11 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 data-testid="signup-mobile"
               />
@@ -470,7 +470,7 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe"
+                placeholder="Senha"
                 className="w-full h-11 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 data-testid="signup-password"
               />
@@ -481,10 +481,10 @@ export default function AuthModal({ open, onClose, mode = 'login', onModeChange 
                 className="w-full h-11 mt-1 bg-gray-900 hover:bg-black disabled:opacity-60 text-white font-semibold rounded-full flex items-center justify-center transition-colors text-sm"
                 data-testid="signup-submit"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "M'inscrire"}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Cadastrar"}
               </button>
 
-              <p className="text-center text-[11px] text-gray-400 mt-1">Étape 2/2</p>
+              <p className="text-center text-[11px] text-gray-400 mt-1">Etapa 2/2</p>
             </form>
           </div>
 
