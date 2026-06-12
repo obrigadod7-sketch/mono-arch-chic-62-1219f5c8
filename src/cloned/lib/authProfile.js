@@ -62,14 +62,11 @@ export const getOrCreateSvcProfile = async (authUser, fallback = {}) => {
 };
 
 export const updateSvcProfile = async (userId, values) => {
-  const { data, error } = await supabase
-    .from('svc_profiles')
-    .update(values)
-    .eq('user_id', userId)
-    .limit(1)
-    .select('*')
-    .single();
-
+  // Use the SECURITY DEFINER upsert RPC so we never trip RLS when the row
+  // doesn't exist yet (e.g. fresh signup before the auth trigger fired).
+  const { data, error } = await supabase.rpc('upsert_own_svc_profile', {
+    _values: values || {},
+  });
   if (error) throw error;
   return data;
 };
