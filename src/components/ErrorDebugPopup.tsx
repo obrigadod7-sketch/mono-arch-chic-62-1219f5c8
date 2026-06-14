@@ -106,11 +106,11 @@ export const ErrorDebugPopup = () => {
       status: "pending",
     };
 
-    const { error } = await (supabase.from("debug_instructions") as any).insert(payload);
+    const { error } = await (supabase as any).from("debug_instructions").insert(payload);
     if (!error) return;
 
     if (/schema cache|column/i.test(error.message || "")) {
-      const { error: retryError } = await (supabase.from("debug_instructions") as any).insert({
+      const { error: retryError } = await (supabase as any).from("debug_instructions").insert({
         user_id: user?.id ?? null,
         instruction: instructionWithUser,
         attachments: files,
