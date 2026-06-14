@@ -103,7 +103,13 @@ export default function AIBuilder() {
     (async () => {
       try {
         const { data } = await liveApi.get("/ai-builder/providers");
-        if (data?.providers?.length) setProviders(data.providers);
+        if (data?.providers?.length) {
+          const merged = [...PROVIDERS_FALLBACK];
+          data.providers.forEach((item) => {
+            if (!merged.some((p) => p.id === item.id)) merged.push(item);
+          });
+          setProviders(merged);
+        }
       } catch {
         // mantém fallback
       }
@@ -277,8 +283,11 @@ export default function AIBuilder() {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="gap-1.5">
             <KeyRound className="w-3.5 h-3.5" />
-            {usingEmergentKey ? "Chave Emergent (universal)" : `Chave própria · ${provider}`}
+            {provider === "ollama" ? "Ollama via ngrok" : usingServerProvider ? "Chave Emergent (universal)" : `Chave própria · ${provider}`}
           </Badge>
+          <Button variant="outline" size="sm" onClick={handleTestOllama} data-testid="ai-builder-test-ollama">
+            <RefreshCw className="w-4 h-4 mr-1.5" /> Testar Ollama
+          </Button>
           <Button variant="outline" size="sm" onClick={openKeyDialog} data-testid="ai-builder-manage-keys">
             <Key className="w-4 h-4 mr-1.5" /> Gerenciar chaves
           </Button>
@@ -317,6 +326,11 @@ export default function AIBuilder() {
               <div className="text-[11px] text-nude-500">
                 {currentProviderObj.label}
               </div>
+              {ollamaStatus && (
+                <div className={`text-[11px] rounded-md border px-2 py-1 ${ollamaStatus.ok ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
+                  {ollamaStatus.message}
+                </div>
+              )}
               <div>
                 <Label className="text-sm font-medium text-nude-700 mb-1.5 block">
                   Descreva seu projeto:
