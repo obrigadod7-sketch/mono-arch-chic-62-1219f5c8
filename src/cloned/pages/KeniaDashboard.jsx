@@ -1,5 +1,6 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import {
   LayoutDashboard, MessageCircle, Kanban, FileText, Calendar, Wallet,
   Sparkles, BarChart3, Settings, LogOut, Search, Plus, Mic, Send, QrCode,
@@ -888,12 +889,31 @@ function ChatIA() {
     { role: 'ai', text: 'Olá! Sou a IA jurídica do escritório. Posso resumir processos, redigir petições e tirar dúvidas. Como posso ajudar?' },
   ]);
   const [input, setInput] = useState('');
-  const send = () => {
+  const [loading, setLoading] = useState(false);
+  const send = async () => {
     if (!input.trim()) return;
     const q = input.trim();
     setMsgs((m) => [...m, { role: 'user', text: q }]);
     setInput('');
-    setTimeout(() => setMsgs((m) => [...m, { role: 'ai', text: 'Analisando sua questão com base em jurisprudência recente...' }]), 600);
+    setLoading(true);
+    try {
+      const history = [...msgs, { role: 'user', text: q }].map((m) => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.text,
+      }));
+      const { data, error } = await supabase.functions.invoke('ai-router', {
+        body: { mode: 'chat', messages: [
+          { role: 'system', content: 'Você é a IA jurídica do escritório Kênia Garcia. Responda em PT-BR, com clareza e tom profissional.' },
+          ...history,
+        ] },
+      });
+      if (error) throw error;
+      setMsgs((m) => [...m, { role: 'ai', text: `${data.text}\n\n_via ${data.provider}_` }]);
+    } catch (e) {
+      setMsgs((m) => [...m, { role: 'ai', text: `Falha ao consultar IA: ${e.message || e}` }]);
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <div className="grid grid-cols-12 gap-6 h-[calc(100vh-180px)]">
@@ -919,11 +939,11 @@ function ChatIA() {
           ))}
         </div>
         <div className="p-4 border-t flex gap-2" style={{ borderColor: LINE }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !loading && send()}
             placeholder="Pergunte sobre um processo, lei ou redija uma petição..."
             className="flex-1 px-4 py-2.5 rounded-md text-sm outline-none"
             style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${LINE}`, color: CREAM }} />
-          <button onClick={send} className="px-4 rounded-md" style={{ background: GOLD, color: 'white' }}>
+          <button onClick={send} disabled={loading} className="px-4 rounded-md disabled:opacity-50" style={{ background: GOLD, color: 'white' }}>
             <Send className="w-4 h-4" />
           </button>
         </div>
@@ -1047,6 +1067,7 @@ function SocialConnections() {
 function SettingsPanel() {
   return (
     <div className="max-w-3xl space-y-6">
+      <IntegrationsCard />
       <Card className="p-6">
         <div style={{ fontFamily: serif, color: 'white' }} className="text-xl mb-4">Perfil do escritório</div>
         <div className="grid grid-cols-2 gap-4">
