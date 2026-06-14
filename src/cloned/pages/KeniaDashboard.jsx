@@ -4,7 +4,8 @@ import {
   LayoutDashboard, MessageCircle, Kanban, FileText, Calendar, Wallet,
   Sparkles, BarChart3, Settings, LogOut, Search, Plus, Mic, Send, QrCode,
   CheckCircle2, Clock, TrendingUp, Users, DollarSign, Bell, ArrowUpRight,
-  Phone, Paperclip, MoreHorizontal,
+  Phone, Paperclip, MoreHorizontal, Power, RefreshCw, Copy, Smartphone, Webhook,
+  Shield, Volume2,
 } from 'lucide-react';
 import { AuthContext } from '../ClonedAuthContext';
 
