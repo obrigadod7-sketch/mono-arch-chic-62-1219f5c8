@@ -1,5 +1,6 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import {
   LayoutDashboard, MessageCircle, Kanban, FileText, Calendar, Wallet,
   Sparkles, BarChart3, Settings, LogOut, Search, Plus, Mic, Send, QrCode,
@@ -888,12 +889,31 @@ function ChatIA() {
     { role: 'ai', text: 'Olá! Sou a IA jurídica do escritório. Posso resumir processos, redigir petições e tirar dúvidas. Como posso ajudar?' },
   ]);
   const [input, setInput] = useState('');
-  const send = () => {
+  const [loading, setLoading] = useState(false);
+  const send = async () => {
     if (!input.trim()) return;
     const q = input.trim();
     setMsgs((m) => [...m, { role: 'user', text: q }]);
     setInput('');
-    setTimeout(() => setMsgs((m) => [...m, { role: 'ai', text: 'Analisando sua questão com base em jurisprudência recente...' }]), 600);
+    setLoading(true);
+    try {
+      const history = [...msgs, { role: 'user', text: q }].map((m) => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.text,
+      }));
+      const { data, error } = await supabase.functions.invoke('ai-router', {
+        body: { mode: 'chat', messages: [
+          { role: 'system', content: 'Você é a IA jurídica do escritório Kênia Garcia. Responda em PT-BR, com clareza e tom profissional.' },
+          ...history,
+        ] },
+      });
+      if (error) throw error;
+      setMsgs((m) => [...m, { role: 'ai', text: `${data.text}\n\n_via ${data.provider}_` }]);
+    } catch (e) {
+      setMsgs((m) => [...m, { role: 'ai', text: `Falha ao consultar IA: ${e.message || e}` }]);
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <div className="grid grid-cols-12 gap-6 h-[calc(100vh-180px)]">
@@ -919,11 +939,11 @@ function ChatIA() {
           ))}
         </div>
         <div className="p-4 border-t flex gap-2" style={{ borderColor: LINE }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !loading && send()}
             placeholder="Pergunte sobre um processo, lei ou redija uma petição..."
             className="flex-1 px-4 py-2.5 rounded-md text-sm outline-none"
             style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${LINE}`, color: CREAM }} />
-          <button onClick={send} className="px-4 rounded-md" style={{ background: GOLD, color: 'white' }}>
+          <button onClick={send} disabled={loading} className="px-4 rounded-md disabled:opacity-50" style={{ background: GOLD, color: 'white' }}>
             <Send className="w-4 h-4" />
           </button>
         </div>
@@ -1045,8 +1065,72 @@ function SocialConnections() {
 }
 
 function SettingsPanel() {
+  return _SettingsPanelInner();
+}
+
+function IntegrationsCard() {
+  const [status, setStatus] = useState(null);
+  const [testing, setTesting] = useState(null);
+  const [result, setResult] = useState({});
+  const PROVIDERS = [
+    { id: 'emergent', label: 'Emergent', tag: '1º (prioridade)' },
+    { id: 'ollama', label: 'Ollama', tag: '2º' },
+    { id: 'lovable', label: 'Lovable AI', tag: '3º (fallback)' },
+  ];
+  useEffect(() => {
+    supabase.functions.invoke('ai-router', { body: { action: 'status' } })
+      .then(({ data }) => setStatus(data)).catch(() => setStatus({}));
+  }, []);
+  const test = async (p) => {
+    setTesting(p); setResult((r) => ({ ...r, [p]: null }));
+    const { data, error } = await supabase.functions.invoke('ai-router', { body: { action: 'test', provider: p } });
+    setResult((r) => ({ ...r, [p]: error ? { ok: false, error: error.message } : data }));
+    setTesting(null);
+  };
+  return (
+    <Card className="p-6">
+      <div style={{ fontFamily: serif, color: 'white' }} className="text-xl mb-1">Integrações de IA</div>
+      <div className="text-xs mb-4" style={{ color: 'rgba(246,239,229,0.6)' }}>
+        Ordem de prioridade: Emergent → Ollama → Lovable AI. Configure as chaves nos secrets do Cloud.
+      </div>
+      <div className="space-y-2">
+        {PROVIDERS.map((p) => {
+          const configured = status?.[p.id];
+          const r = result[p.id];
+          return (
+            <div key={p.id} className="flex items-center justify-between p-3 rounded-md" style={{ border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.02)' }}>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-white">{p.label}</span>
+                  <Pill color={GOLD_SOFT}>{p.tag}</Pill>
+                  <Pill color={configured ? '#5ac28a' : '#c66'}>{configured ? 'Configurado' : 'Faltando'}</Pill>
+                </div>
+                {r && (
+                  <div className="text-[11px] mt-1" style={{ color: r.ok ? '#5ac28a' : '#e88' }}>
+                    {r.ok ? 'Conexão OK' : `Falhou: ${r.error}`}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => test(p.id)} disabled={testing === p.id}
+                className="px-3 py-1.5 rounded-md text-xs disabled:opacity-50"
+                style={{ border: `1px solid ${LINE}`, color: CREAM }}>
+                {testing === p.id ? 'Testando...' : 'Testar conexão'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[11px] mt-3" style={{ color: 'rgba(246,239,229,0.5)' }}>
+        Secrets esperados: <b>EMERGENT_API_KEY</b>, <b>EMERGENT_BASE_URL</b>, <b>OLLAMA_BASE_URL</b>, <b>LOVABLE_API_KEY</b>.
+      </div>
+    </Card>
+  );
+}
+
+function _SettingsPanelInner() {
   return (
     <div className="max-w-3xl space-y-6">
+      <IntegrationsCard />
       <Card className="p-6">
         <div style={{ fontFamily: serif, color: 'white' }} className="text-xl mb-4">Perfil do escritório</div>
         <div className="grid grid-cols-2 gap-4">
