@@ -9,6 +9,7 @@ const EMERGENT_URL = Deno.env.get('EMERGENT_BASE_URL') || 'https://api.emergent.
 const OLLAMA_URL = Deno.env.get('OLLAMA_BASE_URL');
 const LOVABLE_KEY = Deno.env.get('LOVABLE_API_KEY');
 const OLLAMA_HEADERS = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' };
+const OLLAMA_FALLBACK_URL = 'https://unabashed-vertical-crispness.ngrok-free.dev';
 
 async function tryEmergentChat(messages: any[], model?: string) {
   if (!EMERGENT_KEY) throw new Error('emergent_not_configured');
@@ -23,15 +24,22 @@ async function tryEmergentChat(messages: any[], model?: string) {
 }
 
 async function tryOllamaChat(messages: any[], model?: string) {
-  if (!OLLAMA_URL) throw new Error('ollama_not_configured');
-  const r = await fetch(`${OLLAMA_URL.replace(/\/$/, '')}/api/chat`, {
-    method: 'POST',
-    headers: OLLAMA_HEADERS,
-    body: JSON.stringify({ model: model || 'llama3.1', messages, stream: false }),
-  });
-  if (!r.ok) throw new Error(`ollama_chat_${r.status}: ${await r.text()}`);
-  const j = await r.json();
-  return { provider: 'ollama', text: j.message?.content ?? '' };
+  const bases = Array.from(new Set([OLLAMA_URL, OLLAMA_FALLBACK_URL].filter(Boolean) as string[]));
+  if (bases.length === 0) throw new Error('ollama_not_configured');
+  const errors: string[] = [];
+  for (const base of bases) {
+    try {
+      const r = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
+        method: 'POST',
+        headers: OLLAMA_HEADERS,
+        body: JSON.stringify({ model: model || 'qwen2.5:3b-instruct', messages, stream: false }),
+      });
+      if (!r.ok) throw new Error(`ollama_chat_${r.status}: ${await r.text()}`);
+      const j = await r.json();
+      return { provider: 'ollama', text: j.message?.content ?? '', ollama_url: base };
+    } catch (e) { errors.push(`${base}: ${(e as Error).message}`); }
+  }
+  throw new Error(errors.join(' | '));
 }
 
 async function tryLovableChat(messages: any[]) {
@@ -101,6 +109,7 @@ Deno.serve(async (req) => {
         lovable: !!LOVABLE_KEY,
         emergent_url: EMERGENT_URL,
         ollama_url: OLLAMA_URL || null,
+        ollama_fallback_url: OLLAMA_FALLBACK_URL,
       }, { headers: corsHeaders });
     }
 
