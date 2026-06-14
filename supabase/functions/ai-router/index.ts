@@ -1,0 +1,134 @@
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+
+const EMERGENT_KEY = Deno.env.get('EMERGENT_API_KEY');
+const EMERGENT_URL = Deno.env.get('EMERGENT_BASE_URL') || 'https://api.emergent.sh/v1';
+const OLLAMA_URL = Deno.env.get('OLLAMA_BASE_URL');
+const LOVABLE_KEY = Deno.env.get('LOVABLE_API_KEY');
+
+async function tryEmergentChat(messages: any[], model?: string) {
+  if (!EMERGENT_KEY) throw new Error('emergent_not_configured');
+  const r = await fetch(`${EMERGENT_URL.replace(/\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${EMERGENT_KEY}` },
+    body: JSON.stringify({ model: model || 'emergent-default', messages }),
+  });
+  if (!r.ok) throw new Error(`emergent_chat_${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  return { provider: 'emergent', text: j.choices?.[0]?.message?.content ?? '' };
+}
+
+async function tryOllamaChat(messages: any[], model?: string) {
+  if (!OLLAMA_URL) throw new Error('ollama_not_configured');
+  const r = await fetch(`${OLLAMA_URL.replace(/\/$/, '')}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: model || 'llama3.1', messages, stream: false }),
+  });
+  if (!r.ok) throw new Error(`ollama_chat_${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  return { provider: 'ollama', text: j.message?.content ?? '' };
+}
+
+async function tryLovableChat(messages: any[]) {
+  if (!LOVABLE_KEY) throw new Error('lovable_not_configured');
+  const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${LOVABLE_KEY}` },
+    body: JSON.stringify({ model: 'google/gemini-3-flash-preview', messages }),
+  });
+  if (!r.ok) throw new Error(`lovable_chat_${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  return { provider: 'lovable', text: j.choices?.[0]?.message?.content ?? '' };
+}
+
+async function tryEmergentImage(prompt: string) {
+  if (!EMERGENT_KEY) throw new Error('emergent_not_configured');
+  const r = await fetch(`${EMERGENT_URL.replace(/\/$/, '')}/images/generations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${EMERGENT_KEY}` },
+    body: JSON.stringify({ prompt, size: '1024x1024' }),
+  });
+  if (!r.ok) throw new Error(`emergent_image_${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  const item = j.data?.[0] ?? {};
+  const image = item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url;
+  return { provider: 'emergent', image };
+}
+
+async function tryLovableImage(prompt: string) {
+  if (!LOVABLE_KEY) throw new Error('lovable_not_configured');
+  const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${LOVABLE_KEY}` },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash-image',
+      messages: [{ role: 'user', content: prompt }],
+      modalities: ['image', 'text'],
+    }),
+  });
+  if (!r.ok) throw new Error(`lovable_image_${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  const image = j.choices?.[0]?.message?.images?.[0]?.image_url?.url
+    ?? j.choices?.[0]?.message?.images?.[0]?.url
+    ?? null;
+  return { provider: 'lovable', image };
+}
+
+async function runChain(fns: Array<() => Promise<any>>) {
+  const errors: string[] = [];
+  for (const fn of fns) {
+    try { return await fn(); } catch (e) { errors.push((e as Error).message); }
+  }
+  throw new Error(errors.join(' | ') || 'no_provider_available');
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { mode = 'chat', prompt = '', messages, model, action } = body;
+
+    if (action === 'status') {
+      return Response.json({
+        emergent: !!EMERGENT_KEY,
+        ollama: !!OLLAMA_URL,
+        lovable: !!LOVABLE_KEY,
+        emergent_url: EMERGENT_URL,
+        ollama_url: OLLAMA_URL || null,
+      }, { headers: corsHeaders });
+    }
+
+    if (action === 'test') {
+      const target = body.provider as string;
+      const out: any = { provider: target, ok: false };
+      try {
+        if (target === 'emergent') await tryEmergentChat([{ role: 'user', content: 'ping' }], model);
+        else if (target === 'ollama') await tryOllamaChat([{ role: 'user', content: 'ping' }], model);
+        else if (target === 'lovable') await tryLovableChat([{ role: 'user', content: 'ping' }]);
+        out.ok = true;
+      } catch (e) { out.error = (e as Error).message; }
+      return Response.json(out, { headers: corsHeaders });
+    }
+
+    if (mode === 'image') {
+      const result = await runChain([
+        () => tryEmergentImage(prompt),
+        () => tryLovableImage(prompt),
+      ]);
+      return Response.json(result, { headers: corsHeaders });
+    }
+
+    const msgs = messages ?? [{ role: 'user', content: prompt }];
+    const result = await runChain([
+      () => tryEmergentChat(msgs, model),
+      () => tryOllamaChat(msgs, model),
+      () => tryLovableChat(msgs),
+    ]);
+    return Response.json(result, { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
