@@ -886,6 +886,8 @@ function Metricas() {
 const PANELS = {
   dashboard: Dashboard, whatsapp: WhatsApp, crm: CRM, processos: Processos,
   agenda: Agenda, financeiro: Financeiro, criativos: Criativos, metricas: Metricas,
+  chatia: ChatIA, aibuilder: AIBuilder, imagefusion: ImageFusion,
+  social: SocialConnections, settings: SettingsPanel, admincases: AdminCases,
 };
 
 export default function KeniaDashboard() {
