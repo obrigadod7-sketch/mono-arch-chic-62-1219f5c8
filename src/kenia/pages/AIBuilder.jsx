@@ -28,6 +28,7 @@ const PROGRESS_EVENTS = {
 };
 
 const PROVIDERS_FALLBACK = [
+  { id: "ollama", label: "Ollama local via ngrok · qwen2.5:3b-instruct", default_model: "qwen2.5:3b-instruct", models: ["qwen2.5:3b-instruct", "qwen2.5:3b"] },
   { id: "emergent", label: "Emergent (universal · fallback Lovable AI)", default_model: "emergent-default", models: ["emergent-default", "google/gemini-3-flash-preview"] },
   { id: "anthropic", label: "Anthropic Claude Sonnet 4.6 (recomendado p/ código)", default_model: "claude-sonnet-4-6", models: ["claude-sonnet-4-6", "claude-opus-4-8", "claude-opus-4-7", "claude-haiku-4-5-20251001"] },
   { id: "openai", label: "OpenAI GPT-5.4", default_model: "gpt-5.4", models: ["gpt-5.4", "gpt-5.4-mini", "gpt-5.2", "gpt-4o"] },
@@ -36,6 +37,7 @@ const PROVIDERS_FALLBACK = [
 
 const KEY_STORAGE = "kenia_ai_builder_keys_v1";
 const PROJECTS_STORAGE = "kenia_ai_builder_projects_v1";
+const DEFAULT_OLLAMA_BASE_URL = "https://unabashed-vertical-crispness.ngrok-free.dev";
 
 const loadKeys = () => {
   try { return JSON.parse(localStorage.getItem(KEY_STORAGE) || "{}"); } catch { return {}; }
@@ -46,6 +48,39 @@ const loadProjects = () => {
 };
 const saveProjects = (p) => localStorage.setItem(PROJECTS_STORAGE, JSON.stringify(p));
 
+const ollamaUrl = (path) => `${DEFAULT_OLLAMA_BASE_URL.replace(/\/$/, "")}${path}`;
+
+const callOllamaChat = async (messages, model) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+  try {
+    const res = await fetch(ollamaUrl("/api/chat"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+      signal: controller.signal,
+      body: JSON.stringify({ model: model || "qwen2.5:3b-instruct", messages, stream: false }),
+    });
+    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    return (data?.message?.content || data?.response || "").trim();
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const generatePlanWithOllama = async (promptText, model) => {
+  const sys = `Você é um gerador de plano de código tipo Lovable. Responda APENAS com JSON válido no formato: {"overview": string, "files":[{"path": string, "content": string}], "next_steps": string[]}. Nada fora do JSON.`;
+  const text = await callOllamaChat([
+    { role: "system", content: sys },
+    { role: "user", content: promptText },
+  ], model);
+  const jsonText = text.replace(/^```(?:json)?\s*|\s*```$/g, "");
+  let parsed;
+  try { parsed = JSON.parse(jsonText); }
+  catch { parsed = { overview: text, files: [], next_steps: [] }; }
+  return { ok: true, provider: "ollama", model, ...parsed };
+};
+
 export default function AIBuilder() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,11 +88,12 @@ export default function AIBuilder() {
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [expandedFiles, setExpandedFiles] = useState({});
   const [providers, setProviders] = useState(PROVIDERS_FALLBACK);
-  const [provider, setProvider] = useState("emergent");
-  const [model, setModel] = useState("emergent-default");
+  const [provider, setProvider] = useState("ollama");
+  const [model, setModel] = useState("qwen2.5:3b-instruct");
   const [keys, setKeys] = useState(loadKeys());
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [keyDraft, setKeyDraft] = useState({ emergent: "", anthropic: "", openai: "", gemini: "" });
+  const [ollamaStatus, setOllamaStatus] = useState(null);
   const [projects, setProjects] = useState(loadProjects());
   const [currentProjectId, setCurrentProjectId] = useState("");
   const scrollRef = useRef(null);
@@ -86,7 +122,21 @@ export default function AIBuilder() {
 
   const currentProviderObj = providers.find((p) => p.id === provider) || PROVIDERS_FALLBACK[0];
   const currentKey = (keys[provider] || "").trim();
-  const usingEmergentKey = !currentKey;
+  const usingServerProvider = provider === "ollama" || !currentKey;
+
+  const handleTestOllama = async () => {
+    setOllamaStatus({ ok: false, message: "Testando Ollama…" });
+    try {
+      const text = await callOllamaChat([{ role: "user", content: "Responda apenas: ok ollama" }], "qwen2.5:3b-instruct");
+      const ok = /ok\s+ollama/i.test(text);
+      setOllamaStatus({ ok, message: ok ? `Conectado: ${text}` : `Resposta inesperada: ${text || "vazia"}` });
+      ok ? toast.success("Ollama respondeu corretamente") : toast.warning("Ollama respondeu, mas fora do esperado");
+    } catch (err) {
+      const msg = err?.message || "Ollama indisponível";
+      setOllamaStatus({ ok: false, message: msg });
+      toast.error(msg);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -101,13 +151,17 @@ export default function AIBuilder() {
     try {
       let data;
       try {
-        const res = await liveApi.post("/ai-builder/generate", {
-          prompt: prompt.trim(),
-          provider,
-          model,
-          api_key: currentKey || undefined,
-        }, { timeout: 180000 });
-        data = res.data;
+        if (provider === "ollama") {
+          data = await generatePlanWithOllama(prompt.trim(), model);
+        } else {
+          const res = await liveApi.post("/ai-builder/generate", {
+            prompt: prompt.trim(),
+            provider,
+            model,
+            api_key: currentKey || undefined,
+          }, { timeout: 180000 });
+          data = res.data;
+        }
       } catch (backendErr) {
         // Fallback: chama ai-router (Emergent → Lovable AI) e pede plano em JSON
         const sys = `Você é um gerador de plano de código tipo Lovable. Responda APENAS com JSON válido no formato: {"overview": string, "files":[{"path": string, "content": string}], "next_steps": string[]}. Nada fora do JSON.`;
@@ -119,6 +173,7 @@ export default function AIBuilder() {
               { role: "user", content: prompt.trim() },
             ],
             model,
+            provider,
           },
         });
         if (aiErr) throw aiErr;
